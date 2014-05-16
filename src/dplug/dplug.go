@@ -45,7 +45,7 @@ type Results map[string]interface{}
 
 type ExternalParameters struct {
 	MethodName string
-	Params     Parameters
+	Params     interface{}
 }
 
 type MethodHandler interface {
@@ -56,6 +56,10 @@ type MethodHandlerFunc func(Parameters, *Results) error
 
 func (f MethodHandlerFunc) Run(p Parameters, r *Results) error {
 	return f(p, r)
+}
+
+type GoPlug struct { //TODO EFF THIS
+    Server *GoPlugServer
 }
 
 type GoPlugServer struct {
@@ -70,29 +74,30 @@ func (gps *GoPlugServer) RegisterMethod(name string, handler MethodHandler) {
 	gps.Methods[name] = handler
 }
 
-func (gps *GoPlugServer) HandleMethod(p ExternalParameters, r *Results) error {
-	handler, ok := gps.Methods[p.MethodName]
+func (gp *GoPlug) HandleMethod(p ExternalParameters, r *Results) error {
+	handler, ok := gp.Server.Methods[p.MethodName]
 	if !ok {
 		return fmt.Errorf(
 			"Method '%v' is not registered for plugin '%v'",
 			p.MethodName,
-			gps.Self.Name,
+			gp.Server.Self.Name,
 		)
 	}
 	return handler.Run(p.Params, r)
 }
 
-func (gps *GoPlugServer) ListMethods(_ interface{}, methods *[]string) error {
-	for name, _ := range gps.Methods {
+func (gp *GoPlug) ListMethods(_ interface{}, methods *[]string) error {
+	for name, _ := range gp.Server.Methods {
 		*methods = append(*methods, name)
 	}
 	return nil
 }
 
 func (gps *GoPlugServer) Serve() error {
-	rpc.Register(gps)
+    gp := &GoPlug{gps}
+	rpc.Register(gp)
 	rpc.HandleHTTP()
-	listener, err := net.Listen("tcp", strconv.Itoa(gps.Self.Port))
+    listener, err := net.Listen("tcp", ":"+strconv.Itoa(gps.Self.Port))
 	if err != nil {
 		return fmt.Errorf("listener error:", err)
 	}
@@ -101,7 +106,7 @@ func (gps *GoPlugServer) Serve() error {
 	return nil
 }
 
-func CallPluginMethod(name, method string, p Parameters, r *Results) error {
+func CallPluginMethod(pluginName, methodName string, p Parameters, r *Results) error {
 	//TODO error handling
 	if session == nil {
 		return fmt.Errorf("Must initialize GoPlug session before calling plugins")
@@ -111,18 +116,21 @@ func CallPluginMethod(name, method string, p Parameters, r *Results) error {
 		//TODO panic?
 	}
 
-	plugin := (*session.plugins)["name"]
+	plugin, ok := (*session.plugins)[pluginName]
+    if !ok {
+        return fmt.Errorf("plugin '%v' does not exist in session", pluginName)
+    }
 
-	client, err := rpc.DialHTTP("tcp", "127.0.0.1"+strconv.Itoa(plugin.Port))
+    client, err := rpc.DialHTTP("tcp", "127.0.0.1:"+strconv.Itoa(plugin.Port))
 	if err != nil {
-		return fmt.Errorf("error connecting")
+        return fmt.Errorf("error connecting: %", err)
 	}
 
 	// Synchronous call
 	err = client.Call(
-		"GoPlugServer.HandleMethod",
+		"GoPlug.HandleMethod",
 		ExternalParameters{
-			plugin.Name,
+			methodName,
 			p,
 		},
 		r,
