@@ -39,23 +39,21 @@ func StartDPlugServer(name string) *DPlugServer {
 }
 
 func validateHandler(hType reflect.Type) {
-	var err error
 	if hType.Kind() == reflect.Func {
 		if hType.NumIn() == 2 {
-			if hType.In(1).Kind() != reflect.Ptr {
-				panic("handler function must take a reference as the second parameter")
+			if hType.In(1).Kind() == reflect.Ptr {
 				if hType.NumOut() == 1 {
-					if hType.Out(0).Implements(
-						reflect.TypeOf(err),
-					) {
+					var err error
+					if hType.Out(0).Implements(reflect.TypeOf(err)) {
 						return
 					} else {
 						panic("handler function must return error")
 					}
-
 				} else {
 					panic("handler function must return one value")
 				}
+			} else {
+				panic("handler function must take a reference as the second parameter")
 			}
 		} else {
 			panic("handler function must take 2 input parameters")
