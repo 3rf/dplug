@@ -1,29 +1,25 @@
 package main
 
+import "goplug"
 import "log"
-import "net/http"
-import "net"
-import "net/rpc"
 
-type Remote struct{}
 
-func (r *Remote) AddSomeNumbers(nums *[]int, result *int) error {
-    log.Print(*nums)
-	sum := 0
-	for _, num := range *nums {
-		sum += num
-	}
-	*result = sum
-    log.Print("returns: ", *result)
+
+func DoIt(p goplug.Parameters, r *goplug.Results) error {
+    log.Print(p)
+	*r = goplug.Results{
+        "woo":"aaaaa" + p["num"].(string) + "aaa",
+
+    }
+    log.Print("returns: ", *r)
 	return nil
 }
 
 func main() {
-	rpc.Register(new(Remote))
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
-	if e != nil {
-		log.Fatal("listen error:", e)
-	}
-	http.Serve(l, nil)
+    gps := goplug.GoPlugServer{
+        Self: goplug.Plugin{"test", []string{}, 1234},
+        Methods: map[string]goplug.MethodHandler{},
+    }
+    gps.RegisterMethod("doit", goplug.MethodHandlerFunc(DoIt))
+    gps.Serve()
 }
