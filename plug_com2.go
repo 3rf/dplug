@@ -29,11 +29,10 @@ func main() {
 
 	gps := dplug.DPlugServer{
 		Self: dplug.Plugin{
-			Name: "test",
+			Name: "test2",
 			Port: *port},
 		Methods: map[string]dplug.MethodHandler{},
 	}
-	gps.RegisterMethod("doit", dplug.MethodHandlerFunc(DoIt))
 	gps.RegisterMethod("doit2it", dplug.MethodHandlerFunc(DoNothing))
 	err := gps.Serve()
 	fmt.Println(err)
