@@ -1,13 +1,13 @@
 package main
 
 import "fmt"
-import "goplug"
+import "dplug"
 import "log"
 import "strconv"
 
-func DoIt(p goplug.Parameters, r *goplug.Results) error {
+func DoIt(p dplug.Parameters, r *dplug.Results) error {
 	log.Print(p)
-	*r = goplug.Results{
+	*r = dplug.Results{
 		"woo": "aaaaa" + strconv.Itoa(p["num"].(int)) + "aaa",
 	}
 	log.Print("returns: ", *r)
@@ -15,12 +15,14 @@ func DoIt(p goplug.Parameters, r *goplug.Results) error {
 }
 
 func main() {
-	gps := goplug.GoPlugServer{
-		Self:    goplug.Plugin{"test", []string{}, 1234},
-		Methods: map[string]goplug.MethodHandler{},
+	gps := dplug.DPlugServer{
+		Self: dplug.Plugin{
+			Name:        "test",
+			MethodNames: []string{},
+			Port:        1234},
+		Methods: map[string]dplug.MethodHandler{},
 	}
-	gps.RegisterMethod("doit", goplug.MethodHandlerFunc(DoIt))
+	gps.RegisterMethod("doit", dplug.MethodHandlerFunc(DoIt))
 	err := gps.Serve()
 	fmt.Println(err)
-
 }
