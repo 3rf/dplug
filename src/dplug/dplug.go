@@ -17,7 +17,7 @@ type DPlugSession struct {
 	rwLock  sync.RWMutex
 }
 
-func Init(conf Config) error {
+func Initialize(conf Config) error {
 	session = &DPlugSession{
 		plugins: &map[string]Plugin{},
 	}
@@ -61,7 +61,7 @@ func startPluginFromConfig(path string, port int) (*Plugin, error) {
 		return nil, fmt.Errorf("error starting '%v' on port %v: %v", path, port, err)
 	}
 
-	time.Sleep(10 * time.Millisecond) //TODO FIXME??? CONFIG????
+	time.Sleep(100 * time.Millisecond) //TODO FIXME??? CONFIG????
 
 	name, err := getPluginNameFromPort(port)
 	if err != nil {

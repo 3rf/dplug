@@ -1,21 +1,19 @@
 package dplug
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"net/rpc"
+	"reflect"
 	"strconv"
 )
 
-type MethodHandler interface {
-	Run(Parameters, *Results) error
-}
+var port *int
 
-type MethodHandlerFunc func(Parameters, *Results) error
-
-func (f MethodHandlerFunc) Run(p Parameters, r *Results) error {
-	return f(p, r)
+func init() {
+	port = flag.Int("dplugport", 0, "port to run plugin on")
 }
 
 type DPlug struct { //TODO EFF THIS
@@ -24,14 +22,56 @@ type DPlug struct { //TODO EFF THIS
 
 type DPlugServer struct {
 	Self    Plugin
-	Methods map[string]MethodHandler
+	Methods map[string]reflect.Value
 }
 
-func (gps *DPlugServer) RegisterMethod(name string, handler MethodHandler) {
+func StartDPlugServer(name string) *DPlugServer {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	dps := DPlugServer{
+		Self: Plugin{
+			Name: name,
+			Port: *port},
+		Methods: map[string]reflect.Value{},
+	}
+	return &dps
+}
+
+func validateHandler(hType reflect.Type) {
+	var err error
+	if hType.Kind() == reflect.Func {
+		if hType.NumIn() == 2 {
+			if hType.In(1).Kind() != reflect.Ptr {
+				panic("handler function must take a reference as the second parameter")
+				if hType.NumOut() == 1 {
+					if hType.Out(0).Implements(
+						reflect.TypeOf(err),
+					) {
+						return
+					} else {
+						panic("handler function must return error")
+					}
+
+				} else {
+					panic("handler function must return one value")
+				}
+			}
+		} else {
+			panic("handler function must take 2 input parameters")
+		}
+	} else {
+		panic("handler must be Func")
+	}
+}
+
+func (gps *DPlugServer) RegisterMethod(name string, handler interface{}) {
 	if _, ok := gps.Methods[name]; ok {
 		panic("Method name '" + name + "' already exists in plugin")
 	}
-	gps.Methods[name] = handler
+
+	validateHandler(reflect.TypeOf(handler))
+	gps.Methods[name] = reflect.ValueOf(handler)
 }
 
 func (gp *DPlug) HandleMethod(p ExternalParameters, r *Results) error {
@@ -43,7 +83,16 @@ func (gp *DPlug) HandleMethod(p ExternalParameters, r *Results) error {
 			gp.Server.Self.Name,
 		)
 	}
-	return handler.Run(p.Params, r)
+	retVals := handler.Call([]reflect.Value{
+		reflect.ValueOf(p.Params),
+		reflect.ValueOf(r),
+	})
+	err := retVals[0]
+	if err.IsNil() {
+		return nil
+	} else {
+		return err.Interface().(error)
+	}
 }
 
 func (gp *DPlug) Methods(_ int, methods *[]string) error {
