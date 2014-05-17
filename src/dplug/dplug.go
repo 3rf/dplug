@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -96,12 +97,12 @@ type Method struct {
 	name   string
 }
 
-type Parameters map[string]interface{}
-type Results map[string]interface{}
-
+type ExternalResults struct {
+	Results interface{}
+}
 type ExternalParameters struct {
 	MethodName string
-	Params     Parameters
+	Params     interface{}
 }
 
 func getPluginNameFromPort(port int) (string, error) {
@@ -185,7 +186,7 @@ func PluginsWithMethod(methodName string) ([]string, error) {
 	return matches, nil
 }
 
-func CallPluginMethod(pluginName, methodName string, p Parameters, r *Results) error {
+func CallPluginMethod(pluginName, methodName string, p interface{}, r interface{}) error {
 	//TODO error handling
 	if session == nil {
 		return fmt.Errorf("Must initialize DPlug session before calling plugins")
@@ -193,6 +194,13 @@ func CallPluginMethod(pluginName, methodName string, p Parameters, r *Results) e
 	if session.plugins == nil {
 		return fmt.Errorf("Must initialize DPlug session before calling plugins")
 		//TODO panic?
+	}
+
+	//verify results interface is a reference
+	if rKind := reflect.TypeOf(r).Kind(); rKind != reflect.Ptr {
+		return fmt.Errorf(
+			"results argument must be reference, but got: %v",
+			rKind)
 	}
 
 	session.rwLock.RLock()
@@ -208,6 +216,8 @@ func CallPluginMethod(pluginName, methodName string, p Parameters, r *Results) e
 		return fmt.Errorf("error connecting: %", err)
 	}
 
+	results := &ExternalResults{r}
+
 	// Synchronous call
 	err = client.Call(
 		"DPlug.HandleMethod",
@@ -215,11 +225,14 @@ func CallPluginMethod(pluginName, methodName string, p Parameters, r *Results) e
 			methodName,
 			p,
 		},
-		r,
+		results,
 	)
 	if err != nil {
 		return fmt.Errorf("plugin error: %v", err)
 	}
+
+	// Set value pointed to by r to be results
+	reflect.Indirect(reflect.ValueOf(r)).Set(reflect.ValueOf(results.Results))
 
 	return nil
 }

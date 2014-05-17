@@ -15,7 +15,7 @@ func DoNothing(p dplug.Parameters, r *dplug.Results) error {
 }
 
 func main() {
-	gps := dplug.StartDPlugServer("test22")
+	gps := dplug.NewDPlugServer("test22")
 	gps.RegisterMethod("doit2it", DoNothing)
 	err := gps.Serve()
 	fmt.Println(err)

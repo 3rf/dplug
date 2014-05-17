@@ -4,22 +4,18 @@ import "fmt"
 import "dplug"
 import "strconv"
 
-func DoIt(p dplug.Parameters, r *dplug.Results) error {
-	*r = dplug.Results{
-		"woo": "aaaaa" + strconv.Itoa(p["num"].(int)) + "aaa",
-	}
+func DoIt(p int, r *string) error {
+	*r = "aaaaa" + strconv.Itoa(p) + "aaa"
 	return nil
 }
 
-func DoNothing(p dplug.Parameters, r *dplug.Results) error {
-	*r = dplug.Results{
-		"woo": "bbbb" + strconv.Itoa(p["num"].(int)) + "ccc",
-	}
+func DoNothing(p int, r *string) error {
+	*r = "bbbb" + strconv.Itoa(p) + "ccc"
 	return nil
 }
 
 func main() {
-	gps := dplug.StartDPlugServer("test thingy")
+	gps := dplug.NewDPlugServer("test thingy")
 	gps.RegisterMethod("doit", DoIt)
 	gps.RegisterMethod("doit2it", DoNothing)
 	err := gps.Serve()

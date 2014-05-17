@@ -25,7 +25,7 @@ type DPlugServer struct {
 	Methods map[string]reflect.Value
 }
 
-func StartDPlugServer(name string) *DPlugServer {
+func NewDPlugServer(name string) *DPlugServer {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -43,8 +43,9 @@ func validateHandler(hType reflect.Type) {
 		if hType.NumIn() == 2 {
 			if hType.In(1).Kind() == reflect.Ptr {
 				if hType.NumOut() == 1 {
-					var err error
-					if hType.Out(0).Implements(reflect.TypeOf(err)) {
+					if hType.Out(0).Implements(
+						reflect.TypeOf((*error)(nil)).Elem(), //Gross
+					) {
 						return
 					} else {
 						panic("handler function must return error")
@@ -72,7 +73,7 @@ func (gps *DPlugServer) RegisterMethod(name string, handler interface{}) {
 	gps.Methods[name] = reflect.ValueOf(handler)
 }
 
-func (gp *DPlug) HandleMethod(p ExternalParameters, r *Results) error {
+func (gp *DPlug) HandleMethod(p ExternalParameters, r *ExternalResults) error {
 	handler, ok := gp.Server.Methods[p.MethodName]
 	if !ok {
 		return fmt.Errorf(
@@ -81,9 +82,11 @@ func (gp *DPlug) HandleMethod(p ExternalParameters, r *Results) error {
 			gp.Server.Self.Name,
 		)
 	}
+	//fill r with new reference
+	r.Results = reflect.New(handler.Type().In(1).Elem()).Interface()
 	retVals := handler.Call([]reflect.Value{
 		reflect.ValueOf(p.Params),
-		reflect.ValueOf(r),
+		reflect.ValueOf(r.Results),
 	})
 	err := retVals[0]
 	if err.IsNil() {

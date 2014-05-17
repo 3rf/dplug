@@ -9,8 +9,8 @@ func main() {
 	err := dplug.Initialize(
 		dplug.Config{
 			[]dplug.PluginRoute{
-				{"./plug_com1", 10101},
-				{"./plug_com2", 11012},
+				{"./plug_com1", 1234},
+				//{"./plug_com2", 11012},
 			},
 		})
 	if err != nil {
@@ -24,11 +24,11 @@ func main() {
 	meth, _ = dplug.PluginsWithMethod("doit2it")
 	fmt.Println("PLUGINS w/ 'doit2it':", meth)
 
-	r := dplug.Results{}
-	err = dplug.CallPluginMethod("test thingy", "doit", dplug.Parameters{"num": 154}, &r)
-	err = dplug.CallPluginMethod("test22", "doit2it", dplug.Parameters{"num": 154}, &r)
+	var r string
+	err = dplug.CallPluginMethod("test thingy", "doit2it", 1664, &r)
 	if err != nil {
+		fmt.Println("ERROR")
 		fmt.Println(err)
 	}
-	fmt.Println(r["woo"])
+    fmt.Println("Got", r)
 }
